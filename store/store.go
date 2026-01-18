@@ -219,6 +219,22 @@ func (s *store) get(key string) ([]byte, error) {
 	return entry.value, nil
 }
 
+func (s *store) createEntry(key string, value []byte) *storeEntry {
+	hashBytes := sha1.Sum(value) // TODO - Do we checksum only the value?
+	firstFourBytes := hashBytes[:4]
+	checksum := binary.BigEndian.Uint32(firstFourBytes)
+	now := time.Now()
+
+	return &storeEntry{
+		crc:      checksum,
+		tstamp:   uint32(now.Unix()),
+		ksz:      uint32(len(key)),
+		value_sz: uint32(len(value)),
+		key:      []byte(key),
+		value:    []byte(value),
+	}
+}
+
 func (s *store) put(key string, value []byte) error {
 	segmentPath := filepath.Join(s.path, strconv.FormatUint(s.curr_segment, 10))
 
@@ -234,19 +250,7 @@ func (s *store) put(key string, value []byte) error {
 	}
 	fileSize := int(fileInfo.Size())
 
-	hashBytes := sha1.Sum(value) // TODO - Do we checksum only the value?
-	firstFourBytes := hashBytes[:4]
-	checksum := binary.BigEndian.Uint32(firstFourBytes)
-	now := time.Now()
-
-	entry := storeEntry{
-		crc:      checksum,
-		tstamp:   uint32(now.Unix()),
-		ksz:      uint32(len(key)),
-		value_sz: uint32(len(value)),
-		key:      []byte(key),
-		value:    []byte(value),
-	}
+	entry := s.createEntry(key, value)
 
 	_, err = file.Write(entry.toBytes())
 	if err != nil {
@@ -258,7 +262,7 @@ func (s *store) put(key string, value []byte) error {
 		file_id:   s.curr_segment,
 		value_sz:  len(value),
 		value_pos: offset,
-		tstamp:    now,
+		tstamp:    time.Unix(int64(entry.tstamp), 0),
 	}
 
 	return nil
