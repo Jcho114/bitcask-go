@@ -29,7 +29,7 @@ type storeKeyInfo struct {
 	file_id   uint64
 	value_sz  int
 	value_pos int
-	tstamp    time.Time
+	tstamp    uint32
 }
 
 type storeSegment os.FileInfo
@@ -262,7 +262,7 @@ func (s *store) put(key string, value []byte) error {
 		file_id:   s.curr_segment,
 		value_sz:  len(value),
 		value_pos: offset,
-		tstamp:    time.Unix(int64(entry.tstamp), 0),
+		tstamp:    entry.tstamp,
 	}
 
 	return nil
