@@ -3,18 +3,15 @@ package store
 import (
 	"io"
 	"os"
-	"path/filepath"
 )
 
 // TODO - Add lock if necessary in the future
 type storeSegment struct {
-	path     string
-	fileInfo os.FileInfo
+	path string
 }
 
 func (segment *storeSegment) getEntry(key string, info *storeKeyInfo) (*storeEntry, error) {
-	segmentPath := filepath.Join(segment.path, segment.fileInfo.Name())
-	file, err := os.Open(segmentPath)
+	file, err := os.Open(segment.path)
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +34,7 @@ func (segment *storeSegment) getEntry(key string, info *storeKeyInfo) (*storeEnt
 }
 
 func (segment *storeSegment) putEntry(key string, value []byte) (uint32, int, error) {
-	segmentPath := filepath.Join(segment.path, segment.fileInfo.Name())
-	file, err := os.OpenFile(segmentPath, os.O_APPEND|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(segment.path, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -61,8 +57,7 @@ func (segment *storeSegment) putEntry(key string, value []byte) (uint32, int, er
 }
 
 func (segment *storeSegment) deleteEntry(key string) error {
-	segmentPath := filepath.Join(segment.path, segment.fileInfo.Name())
-	file, err := os.OpenFile(segmentPath, os.O_APPEND|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(segment.path, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}

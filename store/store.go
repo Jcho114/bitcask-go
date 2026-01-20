@@ -8,6 +8,9 @@ import (
 	"strconv"
 )
 
+// TODO - Make configurable
+const MaximumSegmentSize = 512 // 512 bytes for testing
+
 type Store interface {
 	RunReplit() error
 	get(key string) ([]byte, error)
@@ -17,10 +20,9 @@ type Store interface {
 }
 
 type store struct {
-	path         string
-	keydir       storeKeyDir
-	segments     []storeSegment
-	curr_segment uint64
+	path     string
+	keydir   storeKeyDir
+	segments []storeSegment
 }
 
 func OpenStore(path string) (Store, error) {
@@ -38,10 +40,9 @@ func OpenStore(path string) (Store, error) {
 	}
 
 	s := &store{
-		path:         path,
-		keydir:       make(map[string]storeKeyInfo),
-		segments:     make([]storeSegment, 0),
-		curr_segment: 0,
+		path:     path,
+		keydir:   make(map[string]storeKeyInfo),
+		segments: make([]storeSegment, 0),
 	}
 
 	if directoryExists {
@@ -57,7 +58,7 @@ func OpenStore(path string) (Store, error) {
 }
 
 func (s *store) createNewSegment() error {
-	segmentPath := filepath.Join(s.path, strconv.FormatUint(s.curr_segment, 10))
+	segmentPath := filepath.Join(s.path, strconv.FormatUint(uint64(len(s.segments)), 10))
 
 	file, err := os.Create(segmentPath)
 	if err != nil {
@@ -65,14 +66,12 @@ func (s *store) createNewSegment() error {
 	}
 	file.Close()
 
-	segmentFileInfo, err := os.Stat(segmentPath)
-	if err != nil {
-		return fmt.Errorf("open: %v", err)
-	}
-
-	s.segments = append(s.segments, storeSegment{path: s.path, fileInfo: segmentFileInfo})
-	s.curr_segment = uint64(len(s.segments) - 1)
+	s.segments = append(s.segments, storeSegment{path: segmentPath})
 	return nil
+}
+
+func (s *store) currSegment() *storeSegment {
+	return &s.segments[len(s.segments)-1]
 }
 
 func (s *store) get(key string) ([]byte, error) {
@@ -89,13 +88,25 @@ func (s *store) get(key string) ([]byte, error) {
 }
 
 func (s *store) put(key string, value []byte) error {
-	tstamp, offset, err := s.segments[s.curr_segment].putEntry(key, value)
+	fileInfo, err := os.Stat(s.currSegment().path)
+	if err != nil {
+		return fmt.Errorf("put: %v", err)
+	}
+
+	if fileInfo.Size() > MaximumSegmentSize {
+		err := s.createNewSegment()
+		if err != nil {
+			return fmt.Errorf("put: %v", err)
+		}
+	}
+
+	tstamp, offset, err := s.currSegment().putEntry(key, value)
 	if err != nil {
 		return fmt.Errorf("put: %v", err)
 	}
 
 	s.keydir.putInfo(key, storeKeyInfo{
-		file_id:   s.curr_segment,
+		file_id:   uint64(len(s.segments) - 1),
 		value_sz:  len(value),
 		value_pos: offset,
 		tstamp:    tstamp,
@@ -109,7 +120,19 @@ func (s *store) delete(key string) error {
 		return nil // TODO - Maybe add an error? Idk yet
 	}
 
-	err := s.segments[s.curr_segment].deleteEntry(key)
+	fileInfo, err := os.Stat(s.currSegment().path)
+	if err != nil {
+		return fmt.Errorf("put: %v", err)
+	}
+
+	if fileInfo.Size() > MaximumSegmentSize {
+		err := s.createNewSegment()
+		if err != nil {
+			return fmt.Errorf("put: %v", err)
+		}
+	}
+
+	err = s.currSegment().deleteEntry(key)
 	if err != nil {
 		return fmt.Errorf("delete: %v", err)
 	}
