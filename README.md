@@ -14,4 +14,37 @@ Current features include `GET`, `PUT`, `DELETE`, `KEYS`, and `MERGE`. I also mad
 
 ## Missing Features
 
-At the moment I have yet to implement any concurrency, which I feel is really important to do in the future. There are other functions as well that I have yet to implement, but I won't state them all here.
+At the moment I have yet to implement any concurrency, which I feel is really important to do in the future. Also haven't gotten to making the hint files for `MERGE` yet, either. There are other functions as well that I have yet to implement, but I won't state them all here.
+
+## Usage
+
+For now, I have everything usable via the cli. For the most basic usage do the following command
+
+```bash
+go run . <directory-name>
+```
+
+Now, you have a shell-like interface to run some Bitcask commands manually
+
+```bash
+> KEYS
+NO KEYS
+> GET TEST
+NULL
+> PUT TEST HI
+PUT TEST SUCCESSFULLY
+> GET TEST
+HI
+> PUT TEST BYE
+PUT TEST SUCCESSFULLY
+> GET TEST
+BYE
+> KEYS
+TEST
+> DELETE TEST
+DELETE TEST SUCCESSFULLY
+> GET TEST
+NULL
+> KEYS
+NO KEYS
+```
