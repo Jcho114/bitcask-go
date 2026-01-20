@@ -10,6 +10,10 @@ import (
 
 type Store interface {
 	RunReplit() error
+	get(key string) ([]byte, error)
+	put(key string, value []byte) error
+	delete(key string) error
+	keys() []string
 }
 
 type store struct {
