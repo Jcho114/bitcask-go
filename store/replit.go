@@ -35,7 +35,7 @@ func (s *store) handleLine(line string) error {
 			return nil
 		}
 		key := split[1]
-		value, err := s.get(key)
+		value, err := s.Get(key)
 		if err != nil {
 			return fmt.Errorf("handle: %v", err)
 		}
@@ -50,7 +50,7 @@ func (s *store) handleLine(line string) error {
 			return nil
 		}
 		key, value := split[1], []byte(split[2])
-		err := s.put(key, value, nil)
+		err := s.Put(key, value)
 		if err != nil {
 			return fmt.Errorf("handle: %v", err)
 		}
@@ -61,7 +61,7 @@ func (s *store) handleLine(line string) error {
 			return nil
 		}
 		key := split[1]
-		err := s.delete(key, nil)
+		err := s.Delete(key)
 		if err != nil {
 			return fmt.Errorf("handle: %v", err)
 		}
@@ -71,7 +71,7 @@ func (s *store) handleLine(line string) error {
 			fmt.Println("INVALID COMMAND: KEYS REQUIRES NO ARGUMENTS")
 			return nil
 		}
-		keys := s.keys()
+		keys := s.Keys()
 		if len(keys) == 0 {
 			fmt.Println("NO KEYS")
 		} else {
@@ -82,7 +82,7 @@ func (s *store) handleLine(line string) error {
 			fmt.Println("INVALID COMMAND: MERGE REQUIRES NO ARGUMENTS")
 			return nil
 		}
-		err := s.merge()
+		err := s.Merge()
 		if err != nil {
 			return fmt.Errorf("handle: %v", err)
 		}
