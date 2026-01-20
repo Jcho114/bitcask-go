@@ -6,7 +6,7 @@ Toy implementation of Bitcask in Golang using the intro [whitepaper](https://ria
 
 ## Motive
 
-I learned about this log based KV store while reading through [DDIA](https://dataintensive.net/), and I really wanted to dive a little more than what was mentioned in the textbook. As a result, I made this toy example, that admittedly is not the best and clearly doesn't support a lot of the key features at the moment.
+I learned about this log based KV store while reading through [DDIA](https://dataintensive.net/), and I really wanted to dive a little more than what was mentioned in the textbook. As a result, I made this toy example, that admittedly is not the best and clearly doesn't support a lot of the key features at the moment. To be honest, I feel like I wrote some pretty bad code, to be honest, will need to fix a lot soon.
 
 ## Included Features
 
