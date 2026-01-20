@@ -45,19 +45,30 @@ func OpenStore(path string) (Store, error) {
 		return s, nil
 	}
 
-	firstSegmentPath := filepath.Join(path, strconv.FormatUint(s.curr_segment, 10))
-	file, err := os.Create(firstSegmentPath)
+	err := s.createNewSegment()
 	if err != nil {
 		return nil, fmt.Errorf("open: %v", err)
+	}
+	return s, nil
+}
+
+func (s *store) createNewSegment() error {
+	segmentPath := filepath.Join(s.path, strconv.FormatUint(s.curr_segment, 10))
+
+	file, err := os.Create(segmentPath)
+	if err != nil {
+		return fmt.Errorf("open: %v", err)
 	}
 	file.Close()
 
-	firstSegmentFileInfo, err := os.Stat(firstSegmentPath)
+	segmentFileInfo, err := os.Stat(segmentPath)
 	if err != nil {
-		return nil, fmt.Errorf("open: %v", err)
+		return fmt.Errorf("open: %v", err)
 	}
-	s.segments = append(s.segments, storeSegment{path: path, fileInfo: firstSegmentFileInfo})
-	return s, nil
+
+	s.segments = append(s.segments, storeSegment{path: s.path, fileInfo: segmentFileInfo})
+	s.curr_segment = uint64(len(s.segments) - 1)
+	return nil
 }
 
 func (s *store) get(key string) ([]byte, error) {
