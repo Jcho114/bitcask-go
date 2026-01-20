@@ -1,4 +1,4 @@
-# Bitcask Go (PLEASE DO NOT USE)
+# Bitcask Go (Toy Project So Please Do Not Use)
 
 ![Thumbnail From Whitepaper](thumbnail.png)
 
