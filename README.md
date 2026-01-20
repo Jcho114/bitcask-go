@@ -1,4 +1,4 @@
-# Bitcask Go
+# Bitcask Go (PLEASE DO NOT USE)
 
 ![Thumbnail From Whitepaper](thumbnail.png)
 
