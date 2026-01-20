@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/google/uuid"
 )
@@ -47,7 +48,10 @@ func OpenStore(path string) (Store, error) {
 	}
 
 	if directoryExists {
-		// TODO - Should process the directory instead
+		err := s.initializeFromDirectory()
+		if err != nil {
+			return nil, fmt.Errorf("open: %v", err)
+		}
 		return s, nil
 	}
 
@@ -56,6 +60,54 @@ func OpenStore(path string) (Store, error) {
 		return nil, fmt.Errorf("open: %v", err)
 	}
 	return s, nil
+}
+
+func (s *store) initializeFromDirectory() error {
+	entries, err := os.ReadDir(s.path)
+	if err != nil {
+		return err
+	}
+
+	timestamps := map[string]uint32{}
+	for _, entry := range entries {
+		segmentPath := filepath.Join(s.path, entry.Name())
+		s.segments = append(s.segments, storeSegment{path: segmentPath})
+		firstEntry, err := readFirstEntry(segmentPath)
+		if err != nil {
+			return err
+		}
+		timestamps[segmentPath] = firstEntry.tstamp
+	}
+
+	slices.SortFunc(s.segments, func(a, b storeSegment) int {
+		atstamp := timestamps[a.path]
+		btstamp := timestamps[b.path]
+		return int(atstamp - btstamp)
+	})
+
+	for _, segment := range s.segments {
+		entries, err := readEntriesFromFile(segment.path)
+		if err != nil {
+			return err
+		}
+
+		currSize := 0
+		for _, entry := range entries {
+			if entry.value_sz == 0 {
+				s.keydir.removeInfo(string(entry.key))
+			} else {
+				s.keydir.putInfo(string(entry.key), storeKeyInfo{
+					file_id:   uint64(len(s.segments) - 1),
+					value_sz:  int(entry.value_sz),
+					value_pos: int(currSize),
+					tstamp:    entry.tstamp,
+				})
+			}
+			currSize += 16 + len(entry.key) + len(entry.value)
+		}
+	}
+
+	return nil
 }
 
 func (s *store) createNewSegment() error {

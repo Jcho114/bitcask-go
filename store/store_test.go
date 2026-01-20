@@ -127,3 +127,37 @@ func TestKeysRetrieval(t *testing.T) {
 		}
 	}
 }
+
+func TestPersistence(t *testing.T) {
+	s := setupTestStore(t)
+	defer teardownTestStore(t, s)
+
+	err := s.put("persistent_key", []byte("persistent_value"))
+	if err != nil {
+		t.Fatalf("PUT operation failed: %v", err)
+	}
+
+	err = s.put("deleted_key", []byte("to_be_deleted"))
+	if err != nil {
+		t.Fatalf("PUT operation failed: %v", err)
+	}
+
+	err = s.delete("deleted_key")
+	if err != nil {
+		t.Fatalf("DELETE operation failed: %v", err)
+	}
+
+	s2 := setupTestStore(t)
+	defer teardownTestStore(t, s2)
+
+	if err != nil {
+		t.Fatalf("Failed to reopen store: %v", err)
+	}
+	value, err := s2.get("persistent_key")
+	if err != nil {
+		t.Fatalf("GET operation failed: %v", err)
+	}
+	if string(value) != "persistent_value" {
+		t.Fatalf("Expected 'persistent_value', got: %s", value)
+	}
+}

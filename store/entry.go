@@ -3,6 +3,8 @@ package store
 import (
 	"crypto/sha1"
 	"encoding/binary"
+	"io"
+	"os"
 	"time"
 )
 
@@ -27,6 +29,70 @@ func (entry *storeEntry) toBytes() []byte {
 	copy(bytes[16+len(entry.key):16+len(entry.key)+len(entry.value)], entry.value)
 
 	return bytes
+}
+
+func readFirstEntry(filePath string) (*storeEntry, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	bytes := make([]byte, 16)
+	_, err = file.Read(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	ksz := binary.BigEndian.Uint32(bytes[8:12])
+	value_sz := binary.BigEndian.Uint32(bytes[12:16])
+	totalSize := 16 + ksz + value_sz
+
+	fullBytes := make([]byte, totalSize)
+	copy(fullBytes[:16], bytes)
+	_, err = file.Read(fullBytes[16:])
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+
+	entry := entryFromBytes(fullBytes)
+	return entry, nil
+}
+
+func readEntriesFromFile(filePath string) ([]*storeEntry, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	entries := []*storeEntry{}
+	for {
+		headerBytes := make([]byte, 16)
+		_, err := file.Read(headerBytes)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		ksz := binary.BigEndian.Uint32(headerBytes[8:12])
+		value_sz := binary.BigEndian.Uint32(headerBytes[12:16])
+		totalSize := 16 + ksz + value_sz
+
+		entryBytes := make([]byte, totalSize)
+		copy(entryBytes[:16], headerBytes)
+		_, err = file.Read(entryBytes[16:])
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+
+		entry := entryFromBytes(entryBytes)
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
 }
 
 func entryFromBytes(bytes []byte) *storeEntry {
