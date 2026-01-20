@@ -1,12 +1,12 @@
 # Bitcask Go
 
-![Thumbnail From Whitepaper](./thumbnail.png)
+![Thumbnail From Whitepaper](thumbnail.png)
 
-Toy implementation of Bitcask in Golang using the intro [whitepaper](https://riak.com/assets/bitcask-intro.pdf)
+Toy implementation of Bitcask in Golang using the intro [white paper](https://riak.com/assets/bitcask-intro.pdf)
 
 ## Motive
 
-I learned about this log based KV store while reading through [DDIA](https://dataintensive.net/), and I really wanted to dive a little more than what was mentioned in the textbook. As a result, I made this toy example, that admittedly is not the best and clearly doesn't support a lot of the key features at the moment. To be honest, I feel like I wrote some pretty bad code. Will need to fix a lot soon.
+I learned about this log based KV store while reading through [Designing Data-Intensive Applications](https://dataintensive.net/), and I really wanted to dive a little more than what was mentioned in the textbook. As a result, I made this toy example, that admittedly is not the best and clearly doesn't support a lot of the key features at the moment. To be honest, I feel like I wrote some pretty bad code. Will need to fix a lot soon.
 
 ## Included Features
 
