@@ -90,7 +90,7 @@ func (s *store) put(key string, value []byte) error {
 }
 
 func (s *store) delete(key string) error {
-	if _, ok := s.keydir[key]; !ok {
+	if _, ok := s.keydir.getInfo(key); !ok {
 		return nil // TODO - Maybe add an error? Idk yet
 	}
 
