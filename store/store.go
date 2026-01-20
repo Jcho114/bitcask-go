@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
+
+	"github.com/google/uuid"
 )
 
 // TODO - Make configurable
@@ -58,7 +59,8 @@ func OpenStore(path string) (Store, error) {
 }
 
 func (s *store) createNewSegment() error {
-	segmentPath := filepath.Join(s.path, strconv.FormatUint(uint64(len(s.segments)), 10))
+	filename := uuid.New().String()
+	segmentPath := filepath.Join(s.path, filename)
 
 	file, err := os.Create(segmentPath)
 	if err != nil {
@@ -144,4 +146,12 @@ func (s *store) delete(key string) error {
 
 func (s *store) keys() []string {
 	return s.keydir.getKeys()
+}
+
+func (s *store) merge() error {
+	// TODO - Implement merge functionality
+	// Run replay of first n-1 segments
+	// Take live entries and write to new segment
+	// Delete old segments, rename new segment
+	return nil
 }
