@@ -26,7 +26,7 @@ func TestNullGet(t *testing.T) {
 	s := setupTestStore(t)
 	defer teardownTestStore(t, s)
 
-	value, err := s.get("nonexistent_key")
+	value, err := s.Get("nonexistent_key")
 	if err != nil {
 		t.Fatalf("GET operation failed: %v", err)
 	}
@@ -39,12 +39,12 @@ func TestPutThenGet(t *testing.T) {
 	s := setupTestStore(t)
 	defer teardownTestStore(t, s)
 
-	err := s.put("test_key", []byte("test_value"))
+	err := s.Put("test_key", []byte("test_value"))
 	if err != nil {
 		t.Fatalf("PUT operation failed: %v", err)
 	}
 
-	value, err := s.get("test_key")
+	value, err := s.Get("test_key")
 	if err != nil {
 		t.Fatalf("GET operation failed: %v", err)
 	}
@@ -57,17 +57,17 @@ func TestOverridePut(t *testing.T) {
 	s := setupTestStore(t)
 	defer teardownTestStore(t, s)
 
-	err := s.put("test_key", []byte("initial_value"))
+	err := s.Put("test_key", []byte("initial_value"))
 	if err != nil {
 		t.Fatalf("Initial PUT operation failed: %v", err)
 	}
 
-	err = s.put("test_key", []byte("overridden_value"))
+	err = s.Put("test_key", []byte("overridden_value"))
 	if err != nil {
 		t.Fatalf("Override PUT operation failed: %v", err)
 	}
 
-	value, err := s.get("test_key")
+	value, err := s.Get("test_key")
 	if err != nil {
 		t.Fatalf("GET operation failed: %v", err)
 	}
@@ -80,17 +80,17 @@ func TestDeleteKey(t *testing.T) {
 	s := setupTestStore(t)
 	defer teardownTestStore(t, s)
 
-	err := s.put("test_key", []byte("test_value"))
+	err := s.Put("test_key", []byte("test_value"))
 	if err != nil {
 		t.Fatalf("PUT operation failed: %v", err)
 	}
 
-	err = s.delete("test_key")
+	err = s.Delete("test_key")
 	if err != nil {
 		t.Fatalf("DELETE operation failed: %v", err)
 	}
 
-	value, err := s.get("test_key")
+	value, err := s.Get("test_key")
 	if err != nil {
 		t.Fatalf("GET operation failed: %v", err)
 	}
@@ -105,13 +105,13 @@ func TestKeysRetrieval(t *testing.T) {
 
 	keysToInsert := []string{"key1", "key2", "key3"}
 	for _, key := range keysToInsert {
-		err := s.put(key, []byte("value"))
+		err := s.Put(key, []byte("value"))
 		if err != nil {
 			t.Fatalf("PUT operation failed for key %s: %v", key, err)
 		}
 	}
 
-	retrievedKeys := s.keys()
+	retrievedKeys := s.Keys()
 	if len(retrievedKeys) != len(keysToInsert) {
 		t.Fatalf("Expected %d keys, got %d", len(keysToInsert), len(retrievedKeys))
 	}
@@ -132,17 +132,17 @@ func TestPersistence(t *testing.T) {
 	s := setupTestStore(t)
 	defer teardownTestStore(t, s)
 
-	err := s.put("persistent_key", []byte("persistent_value"))
+	err := s.Put("persistent_key", []byte("persistent_value"))
 	if err != nil {
 		t.Fatalf("PUT operation failed: %v", err)
 	}
 
-	err = s.put("deleted_key", []byte("to_be_deleted"))
+	err = s.Put("deleted_key", []byte("to_be_deleted"))
 	if err != nil {
 		t.Fatalf("PUT operation failed: %v", err)
 	}
 
-	err = s.delete("deleted_key")
+	err = s.Delete("deleted_key")
 	if err != nil {
 		t.Fatalf("DELETE operation failed: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to reopen store: %v", err)
 	}
-	value, err := s2.get("persistent_key")
+	value, err := s2.Get("persistent_key")
 	if err != nil {
 		t.Fatalf("GET operation failed: %v", err)
 	}
@@ -161,3 +161,18 @@ func TestPersistence(t *testing.T) {
 		t.Fatalf("Expected 'persistent_value', got: %s", value)
 	}
 }
+
+func TestPersistenceEmpty(t *testing.T) {
+	s := setupTestStore(t)
+	defer teardownTestStore(t, s)
+
+	s2 := setupTestStore(t)
+	defer teardownTestStore(t, s2)
+
+	keys := s2.Keys()
+	if len(keys) != 0 {
+		t.Fatalf("Expected 0 keys in reopened empty store, got: %d", len(keys))
+	}
+}
+
+// TODO - Add Tests For Merge

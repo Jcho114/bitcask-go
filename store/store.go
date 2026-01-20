@@ -3,6 +3,8 @@ package store
 import (
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,10 +17,11 @@ const MaximumSegmentSize = 512 // 512 bytes for testing
 
 type Store interface {
 	RunReplit() error
-	get(key string) ([]byte, error)
-	put(key string, value []byte) error
-	delete(key string) error
-	keys() []string
+	Get(key string) ([]byte, error)
+	Put(key string, value []byte) error
+	Delete(key string) error
+	Keys() []string
+	Merge() error
 }
 
 type store struct {
@@ -55,11 +58,15 @@ func OpenStore(path string) (Store, error) {
 		return s, nil
 	}
 
-	err := s.createNewSegment()
+	err := s.initializeFromScratch()
 	if err != nil {
 		return nil, fmt.Errorf("open: %v", err)
 	}
 	return s, nil
+}
+
+func (s *store) initializeFromScratch() error {
+	return s.createNewSegment()
 }
 
 func (s *store) initializeFromDirectory() error {
@@ -74,6 +81,10 @@ func (s *store) initializeFromDirectory() error {
 		s.segments = append(s.segments, storeSegment{path: segmentPath})
 		firstEntry, err := readFirstEntry(segmentPath)
 		if err != nil {
+			if err == io.EOF {
+				timestamps[segmentPath] = math.MaxUint32
+				continue
+			}
 			return err
 		}
 		timestamps[segmentPath] = firstEntry.tstamp
@@ -97,7 +108,7 @@ func (s *store) initializeFromDirectory() error {
 				s.keydir.removeInfo(string(entry.key))
 			} else {
 				s.keydir.putInfo(string(entry.key), storeKeyInfo{
-					file_id:   uint64(len(s.segments) - 1),
+					segment:   &segment,
 					value_sz:  int(entry.value_sz),
 					value_pos: int(currSize),
 					tstamp:    entry.tstamp,
@@ -128,20 +139,28 @@ func (s *store) currSegment() *storeSegment {
 	return &s.segments[len(s.segments)-1]
 }
 
+func (s *store) Get(key string) ([]byte, error) {
+	return s.get(key)
+}
+
 func (s *store) get(key string) ([]byte, error) {
 	info, ok := s.keydir.getInfo(key)
 	if !ok {
 		return nil, nil
 	}
 
-	entry, err := s.segments[info.file_id].getEntry(key, &info)
+	entry, err := info.segment.getEntry(key, &info)
 	if err != nil {
 		return nil, fmt.Errorf("get: %v", err)
 	}
 	return entry.value, nil
 }
 
-func (s *store) put(key string, value []byte) error {
+func (s *store) Put(key string, value []byte) error {
+	return s.put(key, value, nil)
+}
+
+func (s *store) put(key string, value []byte, timestamp *uint32) error {
 	fileInfo, err := os.Stat(s.currSegment().path)
 	if err != nil {
 		return fmt.Errorf("put: %v", err)
@@ -154,13 +173,13 @@ func (s *store) put(key string, value []byte) error {
 		}
 	}
 
-	tstamp, offset, err := s.currSegment().putEntry(key, value)
+	tstamp, offset, err := s.currSegment().putEntry(key, value, timestamp)
 	if err != nil {
 		return fmt.Errorf("put: %v", err)
 	}
 
 	s.keydir.putInfo(key, storeKeyInfo{
-		file_id:   uint64(len(s.segments) - 1),
+		segment:   s.currSegment(),
 		value_sz:  len(value),
 		value_pos: offset,
 		tstamp:    tstamp,
@@ -169,7 +188,11 @@ func (s *store) put(key string, value []byte) error {
 	return nil
 }
 
-func (s *store) delete(key string) error {
+func (s *store) Delete(key string) error {
+	return s.delete(key, nil)
+}
+
+func (s *store) delete(key string, timestamp *uint32) error {
 	if _, ok := s.keydir.getInfo(key); !ok {
 		return nil // TODO - Maybe add an error? Idk yet
 	}
@@ -186,7 +209,7 @@ func (s *store) delete(key string) error {
 		}
 	}
 
-	err = s.currSegment().deleteEntry(key)
+	err = s.currSegment().deleteEntry(key, timestamp)
 	if err != nil {
 		return fmt.Errorf("delete: %v", err)
 	}
@@ -196,14 +219,70 @@ func (s *store) delete(key string) error {
 	return nil
 }
 
+func (s *store) Keys() []string {
+	return s.keys()
+}
+
 func (s *store) keys() []string {
 	return s.keydir.getKeys()
 }
 
+func (s *store) Merge() error {
+	return s.merge()
+}
+
+// TODO - Double check correctness, I am lowkey kinda tired rn
 func (s *store) merge() error {
-	// TODO - Implement merge functionality
-	// Run replay of first n-1 segments
-	// Take live entries and write to new segment
-	// Delete old segments, rename new segment
+	type tempInfo struct {
+		value  []byte
+		tstamp uint32
+	}
+	tempKeyMap := make(map[string]tempInfo)
+
+	for i := 0; i < len(s.segments)-1; i++ {
+		segment := s.segments[i]
+		entries, err := readEntriesFromFile(segment.path)
+		if err != nil {
+			return fmt.Errorf("merge: %v", err)
+		}
+
+		for _, entry := range entries {
+			if entry.value_sz == 0 {
+				delete(tempKeyMap, string(entry.key))
+			} else {
+				tempKeyMap[string(entry.key)] = tempInfo{
+					value:  entry.value,
+					tstamp: entry.tstamp,
+				}
+			}
+		}
+	}
+
+	tempStore := &store{
+		path:     s.path,
+		keydir:   make(map[string]storeKeyInfo),
+		segments: make([]storeSegment, 0),
+	}
+	tempStore.initializeFromScratch()
+	for key, info := range tempKeyMap {
+		tempStore.put(key, info.value, &info.tstamp)
+	}
+
+	for i := 0; i < len(s.segments)-1; i++ {
+		os.Remove(s.segments[i].path)
+	}
+
+	currSegment := s.currSegment()
+	s.segments = append(tempStore.segments, *currSegment)
+
+	for key, info := range tempStore.keydir {
+		currInfo, ok := s.keydir.getInfo(key)
+		// entry has been added, deleted, or updated in the current segment logs
+		if !ok || currInfo.tstamp > info.tstamp {
+			continue
+		}
+		s.keydir.putInfo(key, info)
+	}
+
 	return nil
 }

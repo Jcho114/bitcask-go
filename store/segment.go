@@ -33,7 +33,7 @@ func (segment *storeSegment) getEntry(key string, info *storeKeyInfo) (*storeEnt
 	return entry, nil
 }
 
-func (segment *storeSegment) putEntry(key string, value []byte) (uint32, int, error) {
+func (segment *storeSegment) putEntry(key string, value []byte, timestamp *uint32) (uint32, int, error) {
 	file, err := os.OpenFile(segment.path, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return 0, 0, err
@@ -46,7 +46,7 @@ func (segment *storeSegment) putEntry(key string, value []byte) (uint32, int, er
 	}
 	fileSize := int(fileInfo.Size())
 
-	entry := createEntry(key, value)
+	entry := createEntry(key, value, timestamp)
 
 	_, err = file.Write(entry.toBytes())
 	if err != nil {
@@ -56,14 +56,14 @@ func (segment *storeSegment) putEntry(key string, value []byte) (uint32, int, er
 	return entry.tstamp, fileSize, nil
 }
 
-func (segment *storeSegment) deleteEntry(key string) error {
+func (segment *storeSegment) deleteEntry(key string, timestamp *uint32) error {
 	file, err := os.OpenFile(segment.path, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	entry := createTombstoneEntry(key)
+	entry := createTombstoneEntry(key, timestamp)
 	_, err = file.Write(entry.toBytes())
 	if err != nil {
 		return err

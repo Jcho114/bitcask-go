@@ -4,7 +4,7 @@ package store
 type storeKeyDir map[string]storeKeyInfo
 
 type storeKeyInfo struct {
-	file_id   uint64
+	segment   *storeSegment
 	value_sz  int
 	value_pos int
 	tstamp    uint32

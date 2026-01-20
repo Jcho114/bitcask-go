@@ -110,15 +110,18 @@ func entryFromBytes(bytes []byte) *storeEntry {
 	return entry
 }
 
-func createEntry(key string, value []byte) *storeEntry {
+func createEntry(key string, value []byte, timestamp *uint32) *storeEntry {
 	hashBytes := sha1.Sum(value) // TODO - Do we checksum only the value?
 	firstFourBytes := hashBytes[:4]
 	checksum := binary.BigEndian.Uint32(firstFourBytes)
-	now := time.Now()
+	if timestamp == nil {
+		timestamp = new(uint32)
+		*timestamp = uint32(time.Now().Unix())
+	}
 
 	return &storeEntry{
 		crc:      checksum,
-		tstamp:   uint32(now.Unix()),
+		tstamp:   uint32(*timestamp),
 		ksz:      uint32(len(key)),
 		value_sz: uint32(len(value)),
 		key:      []byte(key),
@@ -126,10 +129,15 @@ func createEntry(key string, value []byte) *storeEntry {
 	}
 }
 
-func createTombstoneEntry(key string) *storeEntry {
+func createTombstoneEntry(key string, timestamp *uint32) *storeEntry {
+	if timestamp == nil {
+		timestamp = new(uint32)
+		*timestamp = uint32(time.Now().Unix())
+	}
+
 	return &storeEntry{
 		crc:      0,
-		tstamp:   uint32(time.Now().Unix()),
+		tstamp:   uint32(*timestamp),
 		ksz:      uint32(len(key)),
 		value_sz: 0,
 		key:      []byte(key),
